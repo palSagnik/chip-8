@@ -1,0 +1,45 @@
+Architecture Chip-8:
+
+Memory Map:
+
++---------------+= 0xFFF (4095) End of Chip-8 RAM
+|               |
+|               |
+|               |
+|               |
+|               |
+| 0x200 to 0xFFF|
+|     Chip-8    |
+| Program / Data|
+|     Space     |
+|               |
+|               |
+|               |
++- - - - - - - -+= 0x600 (1536) Start of ETI 660 Chip-8 programs
+|               |
+|               |
+|               |
++---------------+= 0x200 (512) Start of most Chip-8 programs
+| 0x000 to 0x1FF|
+| Reserved for  |
+|  interpreter  |
++---------------+= 0x000 (0) Start of Chip-8 RAM
+
+Registers:
+- 16 8-bit general purpose registers: R0 - RF (R just makes more sense)
+- Index (I) register: used as to store memory address, generally last 12 bits used
+- RF is not used by any program, it is generally used flag
+- 2 8-bit special register for timer and sound: when non-zero, decremented at the rate of 60Hz
+- Pseudo registers: 16 bit PC (Program Counter) -> currently executing address
+                     8 bit SP (Stack Pointer) -> points to the top of the Stack
+    these are not available from Chip-8 programs 
+
+Stack:
+- The stack is an array of 16 16-bit values, used to store the address that the interpreter shoud return to when finished with a subroutine. 
+- Chip-8 allows for up to 16 levels of nested subroutines. this nesting limit comes from the size of the stack
+
+Timers & Sound:
+- Delay Timer active when DT Register is zero.
+- This timer does nothing more than subtract 1 from the value of DT at a rate of 60Hz. When DT reaches 0, it deactivates.
+- The sound timer is active whenever the sound timer register (ST) is non-zero. 
+- This timer also decrements at a rate of 60Hz, as long as ST's value is greater than zero. When ST reaches zero, the sound timer deactivates.
