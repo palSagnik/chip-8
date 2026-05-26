@@ -1,6 +1,9 @@
 package chip8
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 type CPU struct {
 	V           		[16]byte            // 16 8-bit registers (V0 - VF)
@@ -38,7 +41,7 @@ func (cpu *CPU) Decode() {
 			// Clear the display
 			cpu.Output = [64][32]byte{}
 
-		// TODO: properly think about Stack instructiions
+		// TODO: properly think about stack instructiions
 		case 0x00EE:
 			// 00EE - RET
             // Return from a subroutine.
@@ -185,11 +188,62 @@ func (cpu *CPU) Decode() {
 
 			cpu.V[x] <<= 1
 		}
-	
+
+	case 0x9000:
+		// 9xy0 - SNE Vx, Vy
+		// Skip next instruction if Vx != Vy.
+		x := (cpu.Opcode & 0x0F00) >> 8
+		y := (cpu.Opcode & 0x00F0) >> 4
+		if cpu.V[x] != cpu.V[y] {
+			cpu.PC += 2
+		}
+
 	case 0xA000:
 		// Annn - LD I, addr
 		// The value of register I is set to nnn
 		cpu.IR = cpu.Opcode & 0xFFF
+
+	case 0xB000:
+		// Bnnn - JP V0, addr
+		// Jump to location nnn + V0.
+		cpu.PC = (cpu.Opcode & 0xFFF) + uint16(cpu.V[0])
+
+	case 0xC000:
+		// Cxkk - RND Vx, byte
+		// Set Vx = random byte AND kk.
+		x := (cpu.Opcode & 0x0F00) >> 8
+		kk := cpu.Opcode & 0x00FF
+		n := byte(rand.Intn(256))
+
+		cpu.V[x] = n & byte(kk)
+
+	// TODO: Display function
+	case 0xD000:
+		// Dxyn - DRW Vx, Vy, nibble
+		// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+		x := (cpu.Opcode & 0x0F00) >> 8
+		y := (cpu.Opcode & 0x00F0) >> 4
+		n := (cpu.Opcode & 0x00F)
+
+		Vx := cpu.V[x]
+		Vy := cpu.V[y]
+
+		for row := 0; row < uint8(n); row++ {
+			spriteMem := cpu.Memory[cpu.IR + row]
+			for col := uint16(0); col < 8; col++ {
+				bit := (spriteMem >> (7 - col)) & 1
+
+				if bit == 1 {
+					cpu.Output[Vx + row][Vy + col] ^= bit
+				}
+			}
+		}
+
+	case 0xE000:
+
+	case 0xF000:
+	// TODO: Keypress function
+
 
 	default:
 		fmt.Printf("Invalid opcode: 0x%X\n", cpu.Opcode)
