@@ -217,7 +217,6 @@ func (cpu *CPU) Decode() {
 
 		cpu.V[x] = n & byte(kk)
 
-	// TODO: Display function
 	case 0xD000:
 		// Dxyn - DRW Vx, Vy, nibble
 		// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
@@ -225,16 +224,25 @@ func (cpu *CPU) Decode() {
 		y := (cpu.Opcode & 0x00F0) >> 4
 		n := (cpu.Opcode & 0x00F)
 
-		Vx := cpu.V[x]
-		Vy := cpu.V[y]
+		Vx := uint16(cpu.V[x])
+		Vy := uint16(cpu.V[y])
+		cpu.V[0xF] = 0
 
-		for row := 0; row < uint8(n); row++ {
+		for row := uint16(0); row < n; row++ {
 			spriteMem := cpu.Memory[cpu.IR + row]
 			for col := uint16(0); col < 8; col++ {
 				bit := (spriteMem >> (7 - col)) & 1
 
 				if bit == 1 {
-					cpu.Output[Vx + row][Vy + col] ^= bit
+					px := (Vx + col) % 64
+					py := (Vy + row) % 32
+
+					// XOR with this erases the pixel
+					// Hence, V[F] = 1
+					if cpu.Output[px][py] == 1 {
+						cpu.V[0xF] = 1
+					}
+					cpu.Output[px][py] ^= bit
 				}
 			}
 		}
