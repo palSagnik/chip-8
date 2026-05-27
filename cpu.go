@@ -35,7 +35,7 @@ func (cpu *CPU) Decode() {
 	switch (cpu.Opcode & 0xF000) {
 
 	case 0x0000:
-		switch cpu.Opcode & 0x00FF {
+		switch cpu.Opcode & 0xFF {
 		case 0x00E0:
 			// 00E0 - CLS
 			// Clear the display
@@ -60,7 +60,7 @@ func (cpu *CPU) Decode() {
 		// 3xkk - SE Vx, byte
 		// Skip next instruction if Vx = kk.
 		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0x00FF
+		kk := cpu.Opcode & 0xFF
 		if cpu.V[x] == byte(kk) {
 			cpu.PC += 2
 		}
@@ -69,7 +69,7 @@ func (cpu *CPU) Decode() {
 		// 4xkk - SNE Vx, byte
 		// Skip next instruction if Vx != kk.
 		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0x00FF
+		kk := cpu.Opcode & 0xFF
 		if cpu.V[x] != byte(kk) {
 			cpu.PC += 2
 		}
@@ -87,14 +87,14 @@ func (cpu *CPU) Decode() {
 		// 6xkk - LD Vx, byte
 		// Set Vx = kk.
 		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0x00FF
+		kk := cpu.Opcode & 0xFF
 		cpu.V[x] = byte(kk)
 
 	case 0x7000:
 		// 7xkk - ADD Vx, byte
 		// Set Vx = Vx + kk.
 		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0x00FF
+		kk := cpu.Opcode & 0xFF
 		cpu.V[x] += byte(kk)
 
 	case 0x8000:
@@ -212,7 +212,7 @@ func (cpu *CPU) Decode() {
 		// Cxkk - RND Vx, byte
 		// Set Vx = random byte AND kk.
 		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0x00FF
+		kk := cpu.Opcode & 0xFF
 		n := byte(rand.Intn(256))
 
 		cpu.V[x] = n & byte(kk)
@@ -228,9 +228,9 @@ func (cpu *CPU) Decode() {
 		Vy := uint16(cpu.V[y])
 		cpu.V[0xF] = 0
 
-		for row := uint16(0); row < n; row++ {
+		for row := range n {
 			spriteMem := cpu.Memory[cpu.IR + row]
-			for col := uint16(0); col < 8; col++ {
+			for col := range uint16(8) {
 				bit := (spriteMem >> (7 - col)) & 1
 
 				if bit == 1 {
@@ -248,9 +248,67 @@ func (cpu *CPU) Decode() {
 		}
 
 	case 0xE000:
+		switch (cpu.Opcode & 0xFF) {
+		case 0x9E:
+			// Ex9E - SKP Vx
+			// Skip next instruction if key with the value of Vx is pressed.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			Vx := cpu.V[x]
+
+			// Pressed -> 1
+			if cpu.Input[Vx] == 1 {
+				cpu.PC += 2
+			}
+
+		case 0xA1:
+			// ExA1 - SKNP Vx
+			// Skip next instruction if key with the value of Vx is not pressed.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			Vx := cpu.V[x]
+
+			// Not Pressed == 0
+			if cpu.Input[Vx] == 0 {
+				cpu.PC += 2
+			}
+		}
 
 	case 0xF000:
-	// TODO: Keypress function
+		switch (cpu.Opcode & 0xFF) {
+		case 0x07:
+			// Fx07 - LD Vx, DT
+			// Set Vx = delay timer value.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			cpu.V[x] = cpu.DelayTimer
+
+		case 0x0A:
+			// Fx0A - LD Vx, K
+			// Wait for a key press, store the value of the key in Vx.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			for key := range 16 {
+				if cpu.Input[key] == 1 {
+					cpu.V[x] = byte(key)
+					return
+				}
+			}
+			cpu.PC -= 2
+
+		case 0x15:
+			// Fx15 - LD DT, Vx
+			// Set delay timer = Vx.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			cpu.DelayTimer = cpu.V[x]
+
+		case 0x18:
+			// Fx18 - LD ST, Vx
+			// Set sound timer = Vx.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			cpu.SoundTimer = cpu.V[x]
+
+		case 0x1E:
+			// Fx1E - ADD I, Vx
+			// Set I = I + Vx.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			cpu.IR += uint16(cpu.V[x])
 
 
 	default:
