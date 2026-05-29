@@ -41,19 +41,22 @@ func (cpu *CPU) Decode() {
 			// Clear the display
 			cpu.Output = [64][32]byte{}
 
-		// TODO: properly think about stack instructiions
 		case 0x00EE:
 			// 00EE - RET
-            // Return from a subroutine.
+			// Return from a subroutine.
 			cpu.PC = cpu.Stack[cpu.SP]
-
-			// TODO: clear the top of the stack?
-			// then decrement the stack pointer
 			cpu.SP -= 1
+
 		}
 	case 0x1000:
 		// 1nnn - JP addr
 		// Jump to location nnn.
+		cpu.PC = cpu.Opcode & 0xFFF
+
+	case 0x2000:
+		cpu.SP += 1
+		cpu.Stack[cpu.SP] = cpu.PC
+
 		cpu.PC = cpu.Opcode & 0xFFF
 
 	case 0x3000:
