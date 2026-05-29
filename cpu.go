@@ -220,6 +220,7 @@ func (cpu *CPU) Decode() {
 	case 0xD000:
 		// Dxyn - DRW Vx, Vy, nibble
 		// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+		// Drawing is done by xor
 		x := (cpu.Opcode & 0x0F00) >> 8
 		y := (cpu.Opcode & 0x00F0) >> 4
 		n := (cpu.Opcode & 0x00F)
@@ -310,6 +311,44 @@ func (cpu *CPU) Decode() {
 			x := (cpu.Opcode & 0x0F00) >> 8
 			cpu.IR += uint16(cpu.V[x])
 
+		case 0x29:
+			// Fx29 - LD F, Vx
+			// Set I = location of sprite for digit Vx.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			num := cpu.V[x]
+
+			// Sprites are 5 bytes each stored from 0x0000
+			cpu.IR = uint16(num * 5) + 0x0000
+
+		case 0x33:
+			// Fx33 - LD B, Vx
+			// Store BCD representation of Vx in memory locations I, I+1, and I+2.
+			x := (cpu.Opcode & 0x0F00) >> 8
+			num := cpu.V[x]
+
+			for i := 2; i >= 0; i-- {
+				cpu.Memory[cpu.IR + uint16(i)] = num % 10
+				num /= 10
+			}
+
+		case 0x55:
+			// Fx55 - LD [I], Vx
+			// Store registers V0 through Vx in memory starting at location I.
+			x := (cpu.Opcode & 0x0F00) >> 8
+
+			for i := uint16(0); i <= x; i++ {
+				cpu.Memory[cpu.IR + i] = cpu.V[i]
+			}
+
+		case 0x65:
+			// Fx65 - LD Vx, [I]
+			// Read registers V0 through Vx from memory starting at location I.
+			x := (cpu.Opcode & 0x0F00) >> 8
+
+			for i := uint16(0); i <= x; i++ {
+				cpu.V[i] = cpu.Memory[cpu.IR + i]
+			}
+		}
 
 	default:
 		fmt.Printf("Invalid opcode: 0x%X\n", cpu.Opcode)

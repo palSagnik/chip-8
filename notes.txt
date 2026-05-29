@@ -32,14 +32,18 @@ Registers:
 - 2 8-bit special register for timer and sound: when non-zero, decremented at the rate of 60Hz
 - Pseudo registers: 16 bit PC (Program Counter) -> currently executing address
                      8 bit SP (Stack Pointer) -> points to the top of the Stack
-    these are not available from Chip-8 programs 
+    these are not available from Chip-8 programs
 
 Stack:
-- The stack is an array of 16 16-bit values, used to store the address that the interpreter shoud return to when finished with a subroutine. 
+- The stack is an array of 16 16-bit values, used to store the address that the interpreter shoud return to when finished with a subroutine.
 - Chip-8 allows for up to 16 levels of nested subroutines. this nesting limit comes from the size of the stack
 
 Timers & Sound:
 - Delay Timer active when DT Register is zero.
 - This timer does nothing more than subtract 1 from the value of DT at a rate of 60Hz. When DT reaches 0, it deactivates.
-- The sound timer is active whenever the sound timer register (ST) is non-zero. 
+- The sound timer is active whenever the sound timer register (ST) is non-zero.
 - This timer also decrements at a rate of 60Hz, as long as ST's value is greater than zero. When ST reaches zero, the sound timer deactivates.
+
+Sprites:
+- Programs may also refer to a group of sprites representing the hexadecimal digits 0 through F.
+- These sprites are 5 bytes long, or 8x5 pixels. The data should be stored in the interpreter area of Chip-8 memory (0x000 to 0x1FF)
