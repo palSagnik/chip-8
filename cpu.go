@@ -21,6 +21,25 @@ type CPU struct {
 	Opcode 				uint16				// current opcode
 }
 
+func (cpu *CPU) Init() {
+	// clear registers
+	for i := range 16 {
+		cpu.V[i] = 0
+	}
+	cpu.DelayTimer = 0
+	cpu.SoundTimer = 0
+	cpu.IR = 0
+
+
+	// clear memory, stack
+	cpu.Memory = [4096]byte{}
+	cpu.Stack = [16]uint16{}
+
+	// clear input, output
+	cpu.Output = [64][32]byte{}
+	cpu.Input = [16]byte{}
+}
+
 func (cpu *CPU) Fetch() {
 	// update opcode with current instruction
 	cpu.Opcode = uint16(cpu.Memory[cpu.PC])
