@@ -38,6 +38,12 @@ func (cpu *CPU) Init() {
 	// clear input, output
 	cpu.Output = [64][32]byte{}
 	cpu.Input = [16]byte{}
+
+	// loading fontset
+	copy(cpu.Memory[:], fontset[:])
+
+	// setting PC
+	cpu.PC = 0x200
 }
 
 func (cpu *CPU) Fetch() {
