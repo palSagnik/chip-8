@@ -2,8 +2,11 @@ package main
 
 import (
 	"image/color"
+	"log"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/examples/resources/images/audio"
 	chip8 "github.com/palSagnik/chip-8"
 )
 
@@ -13,6 +16,22 @@ type Game struct{
 }
 
 func (g *Game) Update() error {
+	// check input per tick
+	// we need the input state, before the FDE cycle
+	// putting it after, would mean that input arrives 1 tick late
+	g.keyInput()
+
+	// Approximating CPU speed: 600Hz
+	// This implies 600 / 60 => 10 FDE cycles
+	for range 10 {
+		g.cpu.Fetch()
+		g.cpu.Decode()
+	}
+
+	// Decrementing timers
+	if g.cpu.DelayTimer > 0 { g.cpu.DelayTimer-- }
+	if g.cpu.SoundTimer > 0 { g.cpu.SoundTimer-- }
+
 	return nil
 }
 
@@ -44,7 +63,14 @@ func main()  {
 	// Initialising the CPU
 	game.cpu.Init()
 
-	err := ebiten.RunGame(&game)
+	// Copy rom into memory
+	mem, err := os.ReadFile("test/7-beep.ch8")
+	if err != nil {
+		log.Fatalf("Something went wrong: %v", err)
+	}
+	copy(game.cpu.Memory[0x200:], mem)
+
+	err = ebiten.RunGame(&game)
 	if err != nil {
 		panic(err)
 	}
@@ -56,4 +82,28 @@ func (g *Game) drawRect(screen *ebiten.Image, x, y, w, h float64, c color.Color)
     op.GeoM.Translate(x, y)
     op.ColorScale.ScaleWithColor(c)
     screen.DrawImage(g.pixel, op)
+}
+
+func (g *Game) keyInput() {
+	g.cpu.Input[0x0] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyX))
+	g.cpu.Input[0x1] = boolToByte(ebiten.IsKeyPressed(ebiten.Key1))
+	g.cpu.Input[0x2] = boolToByte(ebiten.IsKeyPressed(ebiten.Key2))
+	g.cpu.Input[0x3] = boolToByte(ebiten.IsKeyPressed(ebiten.Key3))
+	g.cpu.Input[0x4] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyQ))
+	g.cpu.Input[0x5] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyW))
+	g.cpu.Input[0x6] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyE))
+	g.cpu.Input[0x7] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyA))
+	g.cpu.Input[0x8] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyS))
+	g.cpu.Input[0x9] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyD))
+	g.cpu.Input[0xA] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyZ))
+	g.cpu.Input[0xB] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyC))
+	g.cpu.Input[0xC] = boolToByte(ebiten.IsKeyPressed(ebiten.Key4))
+	g.cpu.Input[0xD] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyR))
+	g.cpu.Input[0xE] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyF))
+	g.cpu.Input[0xF] = boolToByte(ebiten.IsKeyPressed(ebiten.KeyV))
+}
+
+func boolToByte(b bool) byte {
+	if b { return 1 }
+	return 0
 }

@@ -47,3 +47,16 @@ Timers & Sound:
 Sprites:
 - Programs may also refer to a group of sprites representing the hexadecimal digits 0 through F.
 - These sprites are 5 bytes long, or 8x5 pixels. The data should be stored in the interpreter area of Chip-8 memory (0x000 to 0x1FF)
+
+Cpu:
+- For now let us consider that ~600 FDE cycles/instructions pass per second, putting the clock speed at 600Hz
+- Now ebiten runs the Game.Update() at 60 times per second (60 FPS)
+- That means we need 600/60 = 10 FDE cycles/instructions per update loop
+
+Input:
+
+CHIP-8    Keyboard
+1 2 3 C → 1 2 3 4
+4 5 6 D → Q W E R
+7 8 9 E → A S D F
+A 0 B F → Z X C V
