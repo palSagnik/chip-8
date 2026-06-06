@@ -84,8 +84,14 @@ func main()  {
 	// Initialising the CPU
 	game.cpu.Init()
 
+	if len(os.Args) < 2 {
+		log.Fatal("usage: <rom.ch8>")
+	}
+
+	path := os.Args[1]
+
 	// Copy rom into memory
-	mem, err := os.ReadFile("test/7-beep.ch8")
+	mem, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalf("Something went wrong: %v", err)
 	}
@@ -132,7 +138,7 @@ func boolToByte(b bool) byte {
 func generateBeepSamples() []byte {
 	sampleRate := 44100.0
 	frequency := 440.0
-	numSamples := int(sampleRate * 1)
+	numSamples := int(sampleRate * 1)	// per second
 	buf := make([]byte, numSamples*4)   // 4 bytes per sample
 
 	for i := 0; i < numSamples; i++ {
