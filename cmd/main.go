@@ -1,18 +1,21 @@
 package main
 
 import (
+	"bytes"
 	"image/color"
 	"log"
+	"math"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/examples/resources/images/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	chip8 "github.com/palSagnik/chip-8"
 )
 
 type Game struct{
 	cpu *chip8.CPU
 	pixel *ebiten.Image
+	audioPlayer *audio.Player
 }
 
 func (g *Game) Update() error {
@@ -26,6 +29,16 @@ func (g *Game) Update() error {
 	for range 10 {
 		g.cpu.Fetch()
 		g.cpu.Decode()
+	}
+
+	// Playing sound
+	if g.cpu.SoundTimer > 0 {
+		if !g.audioPlayer.IsPlaying() {
+			g.audioPlayer.Rewind()
+			g.audioPlayer.Play()
+		}
+	} else {
+		g.audioPlayer.Pause()
 	}
 
 	// Decrementing timers
@@ -57,8 +70,16 @@ func main()  {
 	game := Game{
 		cpu: &chip8.CPU{},
 	}
+
 	game.pixel = ebiten.NewImage(1, 1)
 	game.pixel.Fill(color.White)
+
+	// audio
+	audioCtx := audio.NewContext(44100)
+	beepSamples := generateBeepSamples()
+	loop := audio.NewInfiniteLoop(bytes.NewReader(beepSamples), int64(len(beepSamples)))
+	player, _ := audioCtx.NewPlayer(loop)
+	game.audioPlayer = player
 
 	// Initialising the CPU
 	game.cpu.Init()
@@ -106,4 +127,24 @@ func (g *Game) keyInput() {
 func boolToByte(b bool) byte {
 	if b { return 1 }
 	return 0
+}
+
+func generateBeepSamples() []byte {
+	sampleRate := 44100.0
+	frequency := 440.0
+	numSamples := int(sampleRate * 1)
+	buf := make([]byte, numSamples*4)   // 4 bytes per sample
+
+	for i := 0; i < numSamples; i++ {
+		t := float64(i) / sampleRate
+		sample := math.Sin(2 * math.Pi * frequency * t)
+		s := int16(sample * 32767)
+
+		buf[i*4]   = byte(s)        // left low
+		buf[i*4+1] = byte(s >> 8)   // left high
+		buf[i*4+2] = byte(s)        // right low
+		buf[i*4+3] = byte(s >> 8)   // right high
+	}
+
+    return buf
 }
