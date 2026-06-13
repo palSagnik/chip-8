@@ -1,24 +1,19 @@
 package chip8
 
-import (
-	"fmt"
-	"math/rand"
-)
-
 type CPU struct {
-	V           		[16]byte            // 16 8-bit registers (V0 - VF)
-	PC          		uint16              // Program Counter: stores the address of the current instruction
-	SP          		byte                // Stack Pointer: refers to the top of the stack
-	IR          		uint16              // I register: used to store memory address, last 12 bits used in general
-	Stack       		[16]uint16          // Stack
-	DelayTimer  		byte                // Delay Register
-	SoundTimer       	byte                // Sound Register
+	V          [16]byte   // 16 8-bit registers (V0 - VF)
+	PC         uint16     // Program Counter: stores the address of the current instruction
+	SP         byte       // Stack Pointer: refers to the top of the stack
+	IR         uint16     // I register: used to store memory address, last 12 bits used in general
+	Stack      [16]uint16 // Stack
+	DelayTimer byte       // Delay Register
+	SoundTimer byte       // Sound Register
 
-	Memory 				[4096]byte          // Memory
-	Output     		    [64][32]byte        // Output buffer: working as display
-	Input 				[16]byte			// Input: Keypad mapping
+	Memory [4096]byte   // Memory
+	Output [64][32]byte // Output buffer: working as display
+	Input  [16]byte     // Input: Keypad mapping
 
-	Opcode 				uint16				// current opcode
+	Instruction uint16 // current instruction
 }
 
 func (cpu *CPU) Init() {
@@ -29,7 +24,6 @@ func (cpu *CPU) Init() {
 	cpu.DelayTimer = 0
 	cpu.SoundTimer = 0
 	cpu.IR = 0
-
 
 	// clear memory, stack
 	cpu.Memory = [4096]byte{}
@@ -47,338 +41,104 @@ func (cpu *CPU) Init() {
 }
 
 func (cpu *CPU) Fetch() {
-	// update opcode with current instruction
-	cpu.Opcode = uint16(cpu.Memory[cpu.PC])
-	cpu.Opcode = cpu.Opcode << 8
-	cpu.Opcode |= uint16(cpu.Memory[cpu.PC + 1])
+	// update instruction
+	cpu.Instruction = uint16(cpu.Memory[cpu.PC])
+	cpu.Instruction = cpu.Instruction << 8
+	cpu.Instruction |= uint16(cpu.Memory[cpu.PC+1])
 
 	// after succesful fetch point to the next instruction
 	cpu.PC += 2
 }
 
 func (cpu *CPU) Decode() {
-	switch (cpu.Opcode & 0xF000) {
-
+	switch cpu.Instruction & 0xF000 {
 	case 0x0000:
-		switch cpu.Opcode & 0xFF {
+		switch cpu.Instruction & 0xFF {
 		case 0x00E0:
-			// 00E0 - CLS
-			// Clear the display
-			cpu.Output = [64][32]byte{}
-
+			cpu.__00E0()
 		case 0x00EE:
-			// 00EE - RET
-			// Return from a subroutine.
-			cpu.PC = cpu.Stack[cpu.SP]
-			cpu.SP -= 1
-
+			cpu.__00EE()
 		}
+
 	case 0x1000:
-		// 1nnn - JP addr
-		// Jump to location nnn.
-		cpu.PC = cpu.Opcode & 0xFFF
-
+		cpu.__1nnn()
 	case 0x2000:
-		cpu.SP += 1
-		cpu.Stack[cpu.SP] = cpu.PC
-
-		cpu.PC = cpu.Opcode & 0xFFF
-
+		cpu.__2nnn()
 	case 0x3000:
-		// 3xkk - SE Vx, byte
-		// Skip next instruction if Vx = kk.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0xFF
-		if cpu.V[x] == byte(kk) {
-			cpu.PC += 2
-		}
-
+		cpu.__3xkk()
 	case 0x4000:
-		// 4xkk - SNE Vx, byte
-		// Skip next instruction if Vx != kk.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0xFF
-		if cpu.V[x] != byte(kk) {
-			cpu.PC += 2
-		}
-
+		cpu.__4xkk()
 	case 0x5000:
-		// 5xy0 - SE Vx, Vy
-		// Skip next instruction if Vx = Vy.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		y := (cpu.Opcode & 0x00F0) >> 4
-		if cpu.V[x] == cpu.V[y] {
-			cpu.PC += 2
-		}
-
+		cpu.__5xy0()
 	case 0x6000:
-		// 6xkk - LD Vx, byte
-		// Set Vx = kk.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0xFF
-		cpu.V[x] = byte(kk)
-
+		cpu.__6xkk()
 	case 0x7000:
-		// 7xkk - ADD Vx, byte
-		// Set Vx = Vx + kk.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0xFF
-		cpu.V[x] += byte(kk)
+		cpu.__7xkk()
 
 	case 0x8000:
-		switch (cpu.Opcode & 0x000F) {
+		switch cpu.Instruction & 0x000F {
 		case 0x0:
-			// 8xy0 - LD Vx, Vy
-			// Set Vx = Vy.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-			cpu.V[x] = cpu.V[y]
-
+			cpu.__8xy0()
 		case 0x1:
-			// 8xy1 - OR Vx, Vy
-			// Vx = Vx or Vy
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-			cpu.V[x] |= cpu.V[y]
-
+			cpu.__8xy1()
 		case 0x2:
-			// 8xy2 - AND Vx, Vy
-			// Vx = Vx and Vy
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-			cpu.V[x] &= cpu.V[y]
-
+			cpu.__8xy2()
 		case 0x3:
-			// 8xy3 - XOR Vx, Vy
-			// Vx = Vx xor Vy
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-			cpu.V[x] ^= cpu.V[y]
-
+			cpu.__8xy3()
 		case 0x4:
-			// 8xy4 - ADD Vx, Vy
-			// Set Vx = Vx + Vy, set VF = carry.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-
-			result := uint16(cpu.V[x]) + uint16(cpu.V[y])
-
-			// Go wraps silently, X and Y were not widened
-			if result > 255 {
-				// carry = 1
-				cpu.V[0xF] = 1
-			} else {
-				cpu.V[0XF] = 0
-			}
-			cpu.V[x] = byte(result)
-
+			cpu.__8xy4()
 		case 0x5:
-			// 8xy5 - SUB Vx, Vy
-			// Set Vx = Vx - Vy, set VF = NOT borrow.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-
-			result := uint16(cpu.V[x]) - uint16(cpu.V[y])
-			if cpu.V[x] > cpu.V[y] {
-				cpu.V[0xF] = 1
-			} else {
-				cpu.V[0xF] = 0
-			}
-			cpu.V[x] = byte(result)
-
+			cpu.__8xy5()
 		case 0x6:
-			// 8xy6 - SHR Vx {, Vy}
-			// Set Vx = Vx SHR 1.
-			x := (cpu.Opcode & 0x0F00) >> 8
-
-			cpu.V[0xF] = cpu.V[x] & 0x1
-			cpu.V[x] >>= 1
-
+			cpu.__8xy6()
 		case 0x7:
-			// 8xy7 - SUBN Vx, Vy
-			// Set Vx = Vy - Vx, set VF = NOT borrow.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			y := (cpu.Opcode & 0x00F0) >> 4
-
-			result := uint16(cpu.V[y]) - uint16(cpu.V[x])
-			if cpu.V[y] > cpu.V[x] {
-				cpu.V[0xF] = 1
-			} else {
-				cpu.V[0xF] = 0
-			}
-			cpu.V[x] = byte(result)
-
+			cpu.__8xy7()
 		case 0xE:
-			// 8xyE - SHL Vx {, Vy}
-			// Set Vx = Vx SHL 1.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			cpu.V[0xF] = cpu.V[x] & 0x80
-
-			cpu.V[x] <<= 1
+			cpu.__8xyE()
 		}
 
 	case 0x9000:
-		// 9xy0 - SNE Vx, Vy
-		// Skip next instruction if Vx != Vy.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		y := (cpu.Opcode & 0x00F0) >> 4
-		if cpu.V[x] != cpu.V[y] {
-			cpu.PC += 2
-		}
-
+		cpu.__9xy0()
 	case 0xA000:
-		// Annn - LD I, addr
-		// The value of register I is set to nnn
-		cpu.IR = cpu.Opcode & 0xFFF
-
+		cpu.__Annn()
 	case 0xB000:
-		// Bnnn - JP V0, addr
-		// Jump to location nnn + V0.
-		cpu.PC = (cpu.Opcode & 0xFFF) + uint16(cpu.V[0])
-
+		cpu.__Bnnn()
 	case 0xC000:
-		// Cxkk - RND Vx, byte
-		// Set Vx = random byte AND kk.
-		x := (cpu.Opcode & 0x0F00) >> 8
-		kk := cpu.Opcode & 0xFF
-		n := byte(rand.Intn(256))
-
-		cpu.V[x] = n & byte(kk)
-
+		cpu.__Cxkk()
 	case 0xD000:
-		// Dxyn - DRW Vx, Vy, nibble
-		// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-		// Drawing is done by xor
-		x := (cpu.Opcode & 0x0F00) >> 8
-		y := (cpu.Opcode & 0x00F0) >> 4
-		n := (cpu.Opcode & 0x00F)
-
-		Vx := uint16(cpu.V[x])
-		Vy := uint16(cpu.V[y])
-		cpu.V[0xF] = 0
-
-		for row := range n {
-			spriteMem := cpu.Memory[cpu.IR + row]
-			for col := range uint16(8) {
-				bit := (spriteMem >> (7 - col)) & 1
-
-				if bit == 1 {
-					px := (Vx + col) % 64
-					py := (Vy + row) % 32
-
-					// XOR with this erases the pixel
-					// Hence, V[F] = 1
-					if cpu.Output[px][py] == 1 {
-						cpu.V[0xF] = 1
-					}
-					cpu.Output[px][py] ^= bit
-				}
-			}
-		}
+		cpu.__Dxyn()
 
 	case 0xE000:
-		switch (cpu.Opcode & 0xFF) {
+		switch cpu.Instruction & 0xFF {
 		case 0x9E:
-			// Ex9E - SKP Vx
-			// Skip next instruction if key with the value of Vx is pressed.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			Vx := cpu.V[x]
-
-			// Pressed -> 1
-			if cpu.Input[Vx] == 1 {
-				cpu.PC += 2
-			}
-
+			cpu.__Ex9E()
 		case 0xA1:
-			// ExA1 - SKNP Vx
-			// Skip next instruction if key with the value of Vx is not pressed.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			Vx := cpu.V[x]
-
-			// Not Pressed == 0
-			if cpu.Input[Vx] == 0 {
-				cpu.PC += 2
-			}
+			cpu.__ExA1()
 		}
 
 	case 0xF000:
-		switch (cpu.Opcode & 0xFF) {
+		switch cpu.Instruction & 0xFF {
 		case 0x07:
-			// Fx07 - LD Vx, DT
-			// Set Vx = delay timer value.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			cpu.V[x] = cpu.DelayTimer
-
+			cpu.__Fx07()
 		case 0x0A:
-			// Fx0A - LD Vx, K
-			// Wait for a key press, store the value of the key in Vx.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			for key := range 16 {
-				if cpu.Input[key] == 1 {
-					cpu.V[x] = byte(key)
-					return
-				}
-			}
-			cpu.PC -= 2
-
+			cpu.__Fx0A()
 		case 0x15:
-			// Fx15 - LD DT, Vx
-			// Set delay timer = Vx.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			cpu.DelayTimer = cpu.V[x]
-
+			cpu.__Fx15()
 		case 0x18:
-			// Fx18 - LD ST, Vx
-			// Set sound timer = Vx.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			cpu.SoundTimer = cpu.V[x]
-
+			cpu.__Fx18()
 		case 0x1E:
-			// Fx1E - ADD I, Vx
-			// Set I = I + Vx.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			cpu.IR += uint16(cpu.V[x])
-
+			cpu.__Fx1E()
 		case 0x29:
-			// Fx29 - LD F, Vx
-			// Set I = location of sprite for digit Vx.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			num := cpu.V[x]
-
-			// Sprites are 5 bytes each stored from 0x0000
-			cpu.IR = uint16(num * 5) + 0x0000
-
+			cpu.__Fx29()
 		case 0x33:
-			// Fx33 - LD B, Vx
-			// Store BCD representation of Vx in memory locations I, I+1, and I+2.
-			x := (cpu.Opcode & 0x0F00) >> 8
-			num := cpu.V[x]
-
-			for i := 2; i >= 0; i-- {
-				cpu.Memory[cpu.IR + uint16(i)] = num % 10
-				num /= 10
-			}
-
+			cpu.__Fx33()
 		case 0x55:
-			// Fx55 - LD [I], Vx
-			// Store registers V0 through Vx in memory starting at location I.
-			x := (cpu.Opcode & 0x0F00) >> 8
-
-			for i := uint16(0); i <= x; i++ {
-				cpu.Memory[cpu.IR + i] = cpu.V[i]
-			}
-
+			cpu.__Fx55()
 		case 0x65:
-			// Fx65 - LD Vx, [I]
-			// Read registers V0 through Vx from memory starting at location I.
-			x := (cpu.Opcode & 0x0F00) >> 8
-
-			for i := uint16(0); i <= x; i++ {
-				cpu.V[i] = cpu.Memory[cpu.IR + i]
-			}
+			cpu.__Fx65()
 		}
 
 	default:
-		fmt.Printf("Invalid opcode: 0x%X\n", cpu.Opcode)
+		cpu.__invalid()
 	}
 }
