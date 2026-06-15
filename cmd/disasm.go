@@ -28,8 +28,6 @@ type disasmObject struct {
 }
 
 func runDisasm(cmd *cobra.Command, args []string) error {
-	// TODO(human): read the ROM from disasmFile, then iterate 2 bytes at a time.
-	// For each pair of bytes at index i:
 
 	rom, err := os.ReadFile(disasmFile)
 	if err != nil {
