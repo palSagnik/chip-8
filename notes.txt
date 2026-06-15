@@ -60,3 +60,7 @@ CHIP-8    Keyboard
 4 5 6 D → Q W E R
 7 8 9 E → A S D F
 A 0 B F → Z X C V
+
+Disassembler:
+- first is a functionality for an instruction, where an instruction gets disassembled into something legible
+- for example instruction Fx1E should get disassembled into ADD I, Vx
