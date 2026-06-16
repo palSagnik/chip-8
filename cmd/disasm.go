@@ -35,13 +35,14 @@ func runDisasm(cmd *cobra.Command, args []string) error {
 
 	disasmOutput := make([]disasmObject, 0)
 
+	// recursive descent: start at ROM entry point (offset 0 = address 0x200)
+	// and follow control flow rather than reading linearly
 	workList := []int{0}
 	visited := map[int]bool{}
 	for len(workList) > 0 {
 		address := workList[0]
 		workList = workList[1:]
 
-		// if visited then skip; else mark as true
 		if visited[address] {
 			continue
 		}
@@ -50,26 +51,19 @@ func runDisasm(cmd *cobra.Command, args []string) error {
 			break
 		}
 
-		// decode inst
-		inst := uint16(rom[address]) << 8
-		inst |= uint16(rom[address + 1])
-		disasmInst := disassembleInstruction(inst)
+		inst := uint16(rom[address])<<8 | uint16(rom[address+1])
 		disasmOutput = append(disasmOutput, disasmObject{
-			Memory: 0x200 + uint16(address),
-			Opcode: inst,
-			Instruction: disasmInst,
+			Memory:      0x200 + uint16(address),
+			Opcode:      inst,
+			Instruction: disassembleInstruction(inst),
 		})
 
-
-		// pop the old address put the next one
+		// determine which addresses are reachable from this instruction
+		// and add them to the worklist for future processing
 		memAddr := 0x200 + uint16(address)
-		nextAddress := findNextAddress(inst, memAddr)
-		// RET: no more address after here, but worklist might have address
-		if len(nextAddress) == 0 {
-			continue
-		}
-		for _, addr := range nextAddress {
-			workList = append(workList, int(addr - 0x200))
+		nextAddresses := findNextAddress(inst, memAddr)
+		for _, addr := range nextAddresses {
+			workList = append(workList, int(addr-0x200))
 		}
 	}
 
