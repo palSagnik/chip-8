@@ -74,29 +74,31 @@ func runDisasm(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// findNextAddress returns all addresses reachable from the current instruction.
+// This is the core of recursive descent: each instruction type produces different
+// successor addresses, and we must follow all of them to avoid missing code.
 func findNextAddress(inst uint16, address uint16) []uint16 {
 	switch inst & 0xF000 {
 	case 0x0000:
-		if inst & 0xFF == 0xEE {
-			return []uint16{}
+		// RET has no static successor — return address is on the stack at runtime.
+		// The caller (CALL) already pushed address+2 to the worklist.
+		if inst&0xFF == 0xEE {
+			return nil
 		}
 	case 0x1000:
+		// JP nnn — unconditional jump, only successor is the target
 		return []uint16{inst & 0xFFF}
-
-	// CALL has two branches, either it goes to the next after RET or jumps to addr
 	case 0x2000:
+		// CALL nnn — jumps to subroutine AND continues at address+2 after RET
 		return []uint16{inst & 0xFFF, address + 2}
-	case 0x3000:
-		return []uint16{address + 2, address + 4}
-	case 0x4000:
-		return []uint16{address + 2, address + 4}
-	case 0x5000:
-		return []uint16{address + 2, address + 4}
-	case 0x9000:
+	case 0x3000, 0x4000, 0x5000, 0x9000:
+		// conditional skip — both branches are possible at runtime
 		return []uint16{address + 2, address + 4}
 	case 0xE000:
+		// SKP/SKNP — key-based conditional skip, same as above
 		return []uint16{address + 2, address + 4}
 	}
 
+	// all other instructions execute sequentially
 	return []uint16{address + 2}
 }
