@@ -12,6 +12,7 @@ type Game struct{
 	Cpu *chip8.CPU
 	Pixel *ebiten.Image
 	AudioPlayer *audio.Player
+	Debugger 	*chip8.Debugger
 }
 
 func (g *Game) Update() error {
@@ -23,6 +24,9 @@ func (g *Game) Update() error {
 	// Approximating Cpu speed: 600Hz
 	// This implies 600 / 60 => 10 FDE cycles
 	for range 10 {
+		if !g.Debugger.ShouldExecute(g.Cpu.PC) {
+			break
+		}
 		g.Cpu.Fetch()
 		g.Cpu.Decode()
 	}

@@ -47,6 +47,8 @@ func runDisasm(cmd *cobra.Command, args []string) error {
 			continue
 		}
 		visited[address] = true
+		
+		// check if the next byte, exceeds rom memory length
 		if address+1 >= len(rom) {
 			break
 		}
@@ -63,6 +65,7 @@ func runDisasm(cmd *cobra.Command, args []string) error {
 		memAddr := 0x200 + uint16(address)
 		nextAddresses := findNextAddress(inst, memAddr)
 		for _, addr := range nextAddresses {
+			// we store the offset from rom start in worklist
 			workList = append(workList, int(addr-0x200))
 		}
 	}

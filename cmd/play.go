@@ -31,6 +31,7 @@ func runPlay(cmd *cobra.Command, args []string) error {
 	game.Pixel.Fill(color.White)
 	game.AudioPlayer = createAudioPlayer(44100)
 	game.Cpu.Init()
+	game.Debugger = chip8.NewDebugger()
 
 	mem, err := os.ReadFile(playFile)
 	if err != nil {
